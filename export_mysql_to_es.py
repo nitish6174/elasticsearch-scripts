@@ -7,32 +7,49 @@ import collections
 from es_process import *
 from colorprint import *
 
-### MySql variables
+
+
+### MySql credentials
 db_hostname = "localhost"
 db_username = "root"
 db_password = "pass"
+
+### Name of mySQL database from which data will be exported
 db_database = "myapp"
-### Name of target index in elasticsearch
+
+### Name of elasticsearch index to which data will be exported
 db_index = "myapp"
 
+### Export all tables or some tables of the mySQL database. 
+table_list = allTables()
+# table_list = ['tableName1','tableName2']
+
+### Set reset to True to create new elasticsearch index with the target name (deleting index of same name if found)
+### Set reset to False if the target index exists and data is to be simply added to it
+reset = True
+
+### Set mapping_required to True if some data/time etc fields are present. In this case, define the required mapping in setMapping() function below
+set_mapping = False
+
+### If error occurs while exporting data due to fields with date/time type, try setting convert_data to True
+convert_data = False
+
+### If error occurs while exporting data due to fields with non-ascii values, try setting convert_unicode to True
+convert_unicode = False
+
+
+
 def main():
-
-	### Export some tables or all tables of the database
-	table_list = ['tableName1','tableName2']
-	# table_list = allTables()
-
-	### Set reset True to recreate index if present
-	generateDB(table_list,reset=True)
-
+	generateDB(table_list)
 	### Display count of inserted documents for each table to verify
 	countDocuments(table_list)
-
 
 
 def generateDB(table_list,reset=False):
 	if reset==True:
 		es_recreate_index(db_index)
-		# setMapping()
+	if set_mapping==True:
+		setMapping()
 	for table in table_list:
 		exportTable(table)
 	es_refresh_index(index=db_index)
@@ -42,8 +59,11 @@ def generateDB(table_list,reset=False):
 def exportTable(table_name):
 	query = "SELECT * FROM "+table_name
 	data = run(query)
-	# data = convertDate(data)
 	print("Exporting MySQL table - "+table_name+" : "+str(len(data))+" rows")
+	if convert_data==True:
+		data = convertDate(data)
+	if convert_unicode==True:
+		data = convertUnicode(data)
 	for row in data:
 		es_insert(db_index, table_name, row, False)
 
@@ -56,6 +76,7 @@ def allTables():
 		for key in row:
 			table_list.append(row[key])
 	return table_list
+
 
 ### Use this to set some fields as date-time type
 def setMapping():
@@ -75,16 +96,6 @@ def setMapping():
 	}
 	es.indices.put_mapping(index=db_index, doc_type="doc_type_name", body=map_body)
 
-### Converts all strings to unicode. May be useful in case of some errors.
-def convert(data):
-	if isinstance(data, basestring):
-		return unicode(data)
-	elif isinstance(data, collections.Mapping):
-		return dict(map(convert, data.iteritems()))
-	elif isinstance(data, collections.Iterable):
-		return type(data)(map(convert, data))
-	else:
-		return data
 
 ### Converts date-time type values to strings
 def convertDate(data):
@@ -95,12 +106,25 @@ def convertDate(data):
 	return data
 
 
+### Converts all strings to unicode. May be useful in case of some errors.
+def convertUnicode(data):
+	if isinstance(data, basestring):
+		return unicode(data)
+	elif isinstance(data, collections.Mapping):
+		return dict(map(convert, data.iteritems()))
+	elif isinstance(data, collections.Iterable):
+		return type(data)(map(convert, data))
+	else:
+		return data
+
+
 def tableData(table_name):
 	query = "SELECT * FROM "+table_name
 	cursor.execute(query)
 	data = cursor.fetchall()
 	columns = cursor.description
 	return {'table':table_name,'columns':columns,'data':data}
+
 
 ### Check how many documents with doc_type same as a table name are indexed
 def countDocuments(table_list):
