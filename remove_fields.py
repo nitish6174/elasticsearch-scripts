@@ -2,9 +2,12 @@ import os
 from colorprint import *
 
 fields_to_delete = {
-	"index_name" : {
+	"index_name_1" : {
 		"doc_type_1" : [ "key_1" , "key_2" ],
 		"doc_type_2" : [ "key_3" ]
+	},
+	"index_name_2" : {
+		"doc_type_3" : [ "key_4" ]
 	}
 }
 

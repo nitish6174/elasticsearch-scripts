@@ -124,7 +124,7 @@ def findSnapshotVersion(backup_repo_name):
 
 def makeSnapshot(backup_repo_name,snapshot_name,index_list):
 	url = "http://localhost:9200/_snapshot/"+backup_repo_name+"/"+snapshot_name
-	body = "{ \"indices\": \""+index_list.join(",")+"\", \"ignore_unavailable\": \"true\", \"include_global_state\": false }"
+	body = "{ \"indices\": \""+",".join(index_list)+"\", \"ignore_unavailable\": \"true\", \"include_global_state\": false }"
 	cmd = "curl -XPUT '"+url+"' -d '"+body+"'"
 	cprint("Creating snapshot with the following command :", titleC, bold)
 	cprint(cmd+"\n")
